@@ -1,0 +1,16 @@
+*.o
+*.obj
+ucvsh
+
+*.exe
+*.out
+
+bin/
+build/
+obj/
+
+*.tmp
+*.log
+
+.env/
+.vscode/
