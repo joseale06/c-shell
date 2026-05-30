@@ -10,18 +10,15 @@ int main(int argc, char *argv[]) {
     char *args[MAX_ARGS];
 
     while (1) {
-        printf("ucvsh > ");
+        printf("\033[1;33mucvsh >\033[0m ");
         fflush(stdout); // asegura que el prompt 'ucvsh >' se imprima inmediatamente.
 
-        // procesa la entrada de forma segura
+        // captura la entrada de forma segura
         // Si fgets() retorna NULL, significa que hubo un error o se detectó EOF (Ctrl + D)
-        if(fgets(input, MAX_BUFFER, stdin) == NULL) {
-            printf("\nSaliendo de la shell...\n");
-            break;
-        }
+        if(fgets(input, MAX_BUFFER, stdin) == NULL) break;
 
         // limpieza del salto de linea en el comando ingresado por el usuario.
-        // se busca la posición del '\n' y se reemplaza por el carácter nulo '\0'.
+        // se busca la posición de '\n' y se reemplaza por el carácter nulo '\0'.
         input[strcspn(input, "\n")] = '\0';
 
         // si se presiona enter (línea vacía), se vuelve al inicio.
@@ -37,6 +34,13 @@ int main(int argc, char *argv[]) {
             tabulación ('\t')
             salto de línea ('\n') 
             retorno de carro ('\r') (protección ante entrada con formato de Windows).
+
+            ej. si el usuario ingresó "ls -l", input contiene:
+            ['l', 's', ' ', '-', 'l', '\0'] (ya se ha eliminado el salto de linea)
+
+            strtok leerá de izq. a der. el arreglo 'input', buscando cualquier caracter delimitador
+            entonces, reemplazará los delimitadores -> ['l', 's', '\0', '-', 'l', '\0'], además,
+            devuelve un puntero al inicio del array (var. token).
         */
 
         while (token != NULL && i < MAX_ARGS - 1) {
@@ -47,10 +51,26 @@ int main(int argc, char *argv[]) {
         // el arreglo de argumentos debe terminar en NULL para que execvp funcione posteriormente.
         args[i] = NULL; 
 
-        // Si no se capturó ningún argumento
+        // si no se capturó ningún argumento
         if (args[0] == NULL) continue;
 
-        // lógica para identificar comandos, preparar rutas y crear procesos...
+        int run_in_background = 0;
+        if (i > 0 && strcmp(args[i - 1], "&") == 0) {
+            run_in_background = 1;
+            args[i - 1] = NULL;
+            i--;
+        }
+
+        #ifdef DEBUG
+            printf("Comando a ejecutar: [%s]\n", args[0]);
+            for (int j = 1; j < i; j++) 
+                printf("Argumento %d: [%s]\n", j, args[j]);
+            
+            if (run_in_background) 
+                printf("-> El comando se ejecutará en segundo plano (asíncrono).\n");
+            
+            printf("-----------------------------------\n");
+        #endif
     }
     
     return 0;
