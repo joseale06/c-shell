@@ -1,13 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include "../../include/core/parser.h"
+#include "../../include/utils/path_resolver.h"
 
 #define MAX_BUFFER 1024 // tamaño máximo del búfer de entrada.
-#define MAX_ARGS 64     // cantidad máxima de argumentos por comando.
 
-int main(int argc, char *argv[]) {
+int main() {
     char input[MAX_BUFFER];
-    char *args[MAX_ARGS];
 
     while (1) {
         printf("\033[1;33mucvsh >\033[0m ");
@@ -24,54 +27,40 @@ int main(int argc, char *argv[]) {
         // si se presiona enter (línea vacía), se vuelve al inicio.
         if (strlen(input) == 0) continue;
 
-        //-------------------------------------------------------------------------------------
-        // parser: análisis estructural y sintáctico
-
-        int i = 0;
-        char *token = strtok(input, " \t\r\n");
-        /* Delimitadores: 
-            espacio (' ')
-            tabulación ('\t')
-            salto de línea ('\n') 
-            retorno de carro ('\r') (protección ante entrada con formato de Windows).
-
-            ej. si el usuario ingresó "ls -l", input contiene:
-            ['l', 's', ' ', '-', 'l', '\0'] (ya se ha eliminado el salto de linea)
-
-            strtok leerá de izq. a der. el arreglo 'input', buscando cualquier caracter delimitador
-            entonces, reemplazará los delimitadores -> ['l', 's', '\0', '-', 'l', '\0'], además,
-            devuelve un puntero al inicio del array (var. token).
-        */
-
-        while (token != NULL && i < MAX_ARGS - 1) {
-            args[i] = token;
-            i++;
-            token = strtok(NULL, " \t\r\n"); // llamadas subsecuentes a strtok usan NULL (tiene memoria interna).
-        }
-        // el arreglo de argumentos debe terminar en NULL para que execvp funcione posteriormente.
-        args[i] = NULL; 
-
-        // si no se capturó ningún argumento
-        if (args[0] == NULL) continue;
-
-        int run_in_background = 0;
-        if (i > 0 && strcmp(args[i - 1], "&") == 0) {
-            run_in_background = 1;
-            args[i - 1] = NULL;
-            i--;
-        }
+        //
+        CommandStruct *command = parseInput(input);
+        if (command == NULL) continue;
 
         #ifdef DEBUG
-            printf("Comando a ejecutar: [%s]\n", args[0]);
-            for (int j = 1; j < i; j++) 
-                printf("Argumento %d: [%s]\n", j, args[j]);
-            
-            if (run_in_background) 
-                printf("-> El comando se ejecutará en segundo plano (asíncrono).\n");
-            
-            printf("-----------------------------------\n");
+            print_command_debug(command);
         #endif
+
+        char* executable_path = resolve_path(command->command);
+        if (executable_path != NULL) {
+            pid_t pid = fork();
+
+            if (pid < 0) {
+                printf("ucvsh: Error crítico durante la creación del proceso.");
+            } else if (pid == 0) {
+                execv(executable_path, command->cmd_args);
+
+                //si exec() tuvo éxito, el proceso cargó el binario y no ejecutará estas líneas:
+                printf("ucvsh: Error crítico de ejecución.");
+                exit(EXIT_FAILURE);
+            } else {
+                // segmento para el proceso padre.
+                if (command->background == 0) {
+                    int status;
+                    waitpid(pid, &status, 0);
+                } else {
+                    //ejecución asíncrona;
+                }
+            }
+        } else {
+            printf("ucvsh: %s: no se encontró la orden\n", command->command);
+        }
+        free(executable_path);
+        freeCommandStruct(command);
     }
-    
     return 0;
 }
