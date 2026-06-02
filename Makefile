@@ -1,9 +1,13 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=gnu17 # incluir -g para símbolos de depuración
-TARGET=ucvsh
-OBJDIR = bin
-OBJS= $(OBJDIR)/main.o
+CFLAGS = -Wall -Wextra -std=gnu17 -I./include
+# incluir -g para símbolos de depuración
 
+TARGET = ucvsh
+SRC_DIR = src
+OBJ_DIR = bin
+
+SRCS = $(shell find $(SRC_DIR) -name '*.c')
+OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 
 # ejecutar como 'make DEBUG=1'
 ifdef DEBUG
@@ -12,19 +16,22 @@ endif
 
 all: $(TARGET)
 
-$(TARGET) : $(OBJS)
-	$(CC) $(OBJS) -o $(TARGET)
-	@echo "¡Compilación exitosa! Listo para ejecutar (./$(TARGET))"
+$(TARGET): $(OBJS)
+	@$(CC) $(CFLAGS) $^ -o $@
 
-$(OBJDIR)/main.o: main.c | $(OBJDIR)
-	$(CC) $(CFLAGS) -c $< -o $@
+# convierte cada .c individual en un archivo .o
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	@$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJDIR): # crea el dirctorio si no existe.
-	mkdir -p $(OBJDIR)
+run: all
+	@./$(TARGET)
 
 .PHONY: clean run
 clean:
 	@echo "Limpiando archivos binarios y objetos..."
-	rm -f $(OBJDIR) $(TARGET)
+	rm -rf $(OBJ_DIR) $(TARGET)
+
+
 
 
