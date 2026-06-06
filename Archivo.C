@@ -50,24 +50,29 @@ char **parse_args(char *line) {
     return args;
 }
 int main() {
-    char linea[2048];
-    signal(SIGINT, SIG_IGN);
-
+int main() {
+    char linea[2048;
+    
     while (1) {
         printf("ucvsh> ");
-        if (!fgets(linea, sizeof(linea), stdin)) break;
+        if (!fgets(linea, sizeof(linea), stdin)) {
+            break;
+        }
         linea[strcspn(linea, "\n")] = 0;
+
         if (strlen(linea) == 0) continue;
+        if (strcmp(linea, "exit") == 0) break;
+        int cmd_count = 0;
+        Command *cmd_list = parse_line(linea, &cmd_count); 
 
-        if (strcmp(linea, "exit") == 0) exit(0);
-
-        Command cmd;
-        cmd.args = parse_args(linea);
-        cmd.next_op = OP_NONE;
-
-        execute_command_list(&cmd, 1);
-        
-        free(cmd.args);
+        if (cmd_list != NULL) {
+            execute_command_list(cmd_list, cmd_count);
+            for (int i = 0; i < cmd_count; i++) {
+                free(cmd_list[i].args);
+            }
+            free(cmd_list);
+        }
     }
     return 0;
+}
 }
