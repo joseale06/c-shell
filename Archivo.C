@@ -66,27 +66,53 @@ int execute_command_list(Command *cmd_list, int cmd_count) {
 }
 
 Command* parse_line(char *line, int *cmd_count) {
-    Command *list = (Command *)malloc(10 * sizeof(Command));
+    Command *list = (Command *)malloc(20 * sizeof(Command));
     *cmd_count = 0;
-    char *saveptr1, *saveptr2;
-    char *cmd_str = strtok_r(line, ";", &saveptr1);
-    
-    while (cmd_str != NULL) {
-        list[*cmd_count].args = (char **)malloc(64 * sizeof(char *));
-        list[*cmd_count].next_op = OP_SEMICOLON; 
-        int i = 0;
-        char *token = strtok_r(cmd_str, " ", &saveptr2);
-        while (token != NULL) {
-            list[*cmd_count].args[i++] = token;
-            token = strtok_r(NULL, " ", &saveptr2);
+    char *ptr = line;
+    while (*ptr != '\0') {
+        while (*ptr == ' ') ptr++;
+        if (*ptr == '\0') break;
+
+        char *cmd_start = ptr;
+        OperatorType next_op = OP_NONE;
+        while (*ptr != '\0') {
+            if (strncmp(ptr, "&&", 2) == 0) {
+                next_op = OP_AND;
+                *ptr = '\0'; 
+                ptr += 2;    
+                break;
+            } else if (strncmp(ptr, "||", 2) == 0) {
+                next_op = OP_OR;
+                *ptr = '\0';
+                ptr += 2;
+                break;
+            } else if (*ptr == ';') {
+                next_op = OP_SEMICOLON;
+                *ptr = '\0';
+                ptr += 1;
+                break;
+            }
+            ptr++;
         }
-        list[*cmd_count].args[i] = NULL;
-        (*cmd_count)++;
-        cmd_str = strtok_r(NULL, ";", &saveptr1);
+        list[*cmd_count].args = (char **)malloc(64 * sizeof(char *));
+        list[*cmd_count].next_op = next_op;
+        int arg_idx = 0;
+        char *saveptr;
+        char *token = strtok_r(cmd_start, " ", &saveptr);
+        while (token != NULL) {
+            list[*cmd_count].args[arg_idx++] = token;
+            token = strtok_r(NULL, " ", &saveptr);
+        }
+        list[*cmd_count].args[arg_idx] = NULL;
+
+        if (arg_idx > 0) {
+            (*cmd_count)++;
+        }
     }
+
     if (*cmd_count > 0) {
         list[*cmd_count - 1].next_op = OP_NONE;
     }
-    
+
     return list;
 }
