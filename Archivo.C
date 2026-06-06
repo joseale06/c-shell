@@ -66,17 +66,27 @@ int execute_command_list(Command *cmd_list, int cmd_count) {
 }
 
 Command* parse_line(char *line, int *cmd_count) {
-    *cmd_count = 1;
-    Command *list = malloc(sizeof(Command));
-    list[0].args = malloc(64 * sizeof(char *));
+    Command *list = (Command *)malloc(10 * sizeof(Command));
+    *cmd_count = 0;
+    char *saveptr1, *saveptr2;
+    char *cmd_str = strtok_r(line, ";", &saveptr1);
     
-    char *token = strtok(line, " ");
-    int i = 0;
-    while (token != NULL) {
-        list[0].args[i++] = token;
-        token = strtok(NULL, " ");
+    while (cmd_str != NULL) {
+        list[*cmd_count].args = (char **)malloc(64 * sizeof(char *));
+        list[*cmd_count].next_op = OP_SEMICOLON; 
+        int i = 0;
+        char *token = strtok_r(cmd_str, " ", &saveptr2);
+        while (token != NULL) {
+            list[*cmd_count].args[i++] = token;
+            token = strtok_r(NULL, " ", &saveptr2);
+        }
+        list[*cmd_count].args[i] = NULL;
+        (*cmd_count)++;
+        cmd_str = strtok_r(NULL, ";", &saveptr1);
     }
-    list[0].args[i] = NULL;
-    list[0].next_op = OP_NONE;
+    if (*cmd_count > 0) {
+        list[*cmd_count - 1].next_op = OP_NONE;
+    }
+    
     return list;
 }
