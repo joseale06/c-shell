@@ -39,7 +39,7 @@ int execute_command_list(Command *cmd_list, int cmd_count) {
 }
 
 char **parse_args(char *line) {
-    char **args = malloc(64 * sizeof(char *));
+    char **args = (char **)malloc(64 * sizeof(char *));
     char *token = strtok(line, " ");
     int i = 0;
     while (token != NULL) {
