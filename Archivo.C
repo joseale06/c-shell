@@ -51,7 +51,7 @@ char **parse_args(char *line) {
 }
 int main() {
 int main() {
-    char linea[2048;
+    char linea[2048];
     
     while (1) {
         printf("ucvsh> ");
