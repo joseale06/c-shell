@@ -50,7 +50,6 @@ char **parse_args(char *line) {
     return args;
 }
 int main() {
-int main() {
     char linea[2048];
     
     while (1) {
@@ -74,5 +73,4 @@ int main() {
         }
     }
     return 0;
-}
 }
