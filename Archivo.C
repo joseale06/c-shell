@@ -46,7 +46,7 @@ char **parse_args(char *line) {
         args[i++] = token;
         token = strtok(NULL, " ");
     }
-    args[i] = NULL; // Importante: execvp necesita que termine en NULL
+    args[i] = NULL; 
     return args;
 }
 int main() {
