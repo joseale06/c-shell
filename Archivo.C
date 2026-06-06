@@ -17,7 +17,7 @@ Command* parse_line(char *line, int *cmd_count);
 
 int main() {
     char linea[1024];
-
+printf("DEBUG: ¡Estoy compilando el archivo correcto en src!\n");
     while (1) {
         printf("ucvsh> ");
         if (!fgets(linea, sizeof(linea), stdin)) break;
