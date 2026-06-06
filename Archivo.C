@@ -33,7 +33,9 @@ int main() {
         if (cmd_list != NULL) {
             execute_command_list(cmd_list, cmd_count);
             
-            for (int i = 0; i < cmd_count; i++) free(cmd_list[i].args);
+            for (int i = 0; i < cmd_count; i++) {
+                free(cmd_list[i].args);
+            }
             free(cmd_list);
         }
     }
@@ -45,7 +47,9 @@ int launch_process(char **args) {
     if (pid == 0) {
         execvp(args[0], args);
         exit(EXIT_FAILURE);
-    } else if (pid < 0) return -1;
+    } else if (pid < 0) {
+        return -1;
+    }
 
     int status;
     waitpid(pid, &status, 0);
@@ -67,14 +71,18 @@ int execute_command_list(Command *cmd_list, int cmd_count) {
 
 Command* parse_line(char *line, int *cmd_count) {
     Command *list = (Command *)malloc(20 * sizeof(Command));
+    if (!list) return NULL;
+    
     *cmd_count = 0;
     char *ptr = line;
+    
     while (*ptr != '\0') {
         while (*ptr == ' ') ptr++;
         if (*ptr == '\0') break;
 
         char *cmd_start = ptr;
         OperatorType next_op = OP_NONE;
+        
         while (*ptr != '\0') {
             if (strncmp(ptr, "&&", 2) == 0) {
                 next_op = OP_AND;
@@ -94,11 +102,14 @@ Command* parse_line(char *line, int *cmd_count) {
             }
             ptr++;
         }
+        
         list[*cmd_count].args = (char **)malloc(64 * sizeof(char *));
         list[*cmd_count].next_op = next_op;
+        
         int arg_idx = 0;
         char *saveptr;
         char *token = strtok_r(cmd_start, " ", &saveptr);
+        
         while (token != NULL) {
             list[*cmd_count].args[arg_idx++] = token;
             token = strtok_r(NULL, " ", &saveptr);
@@ -107,6 +118,8 @@ Command* parse_line(char *line, int *cmd_count) {
 
         if (arg_idx > 0) {
             (*cmd_count)++;
+        } else {
+            free(list[*cmd_count].args); 
         }
     }
 
