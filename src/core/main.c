@@ -5,7 +5,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include "../../include/core/parser.h"
-#include "../../include/utils/path_resolver.h"
+#include "../../include/core/executor.h"
 
 #define MAX_BUFFER 1024 // tamaño máximo del búfer de entrada.
 
@@ -28,39 +28,17 @@ int main() {
         if (strlen(input) == 0) continue;
 
         //
-        CommandStruct *command = parseInput(input);
-        if (command == NULL) continue;
+        int cmd_count = 0;
+        CommandStruct **cmd_list = parseInput(input, &cmd_count);
 
         #ifdef DEBUG
-            print_command_debug(command);
+            print_command_debug(cmd_list);
         #endif
 
-        char* executable_path = resolve_path(command->command);
-        if (executable_path != NULL) {
-            pid_t pid = fork();
-
-            if (pid < 0) {
-                printf("ucvsh: Error crítico durante la creación del proceso.");
-            } else if (pid == 0) {
-                execv(executable_path, command->cmd_args);
-
-                //si exec() tuvo éxito, el proceso cargó el binario y no ejecutará estas líneas:
-                printf("ucvsh: Error crítico de ejecución.");
-                exit(EXIT_FAILURE);
-            } else {
-                // segmento para el proceso padre.
-                if (command->background == 0) {
-                    int status;
-                    waitpid(pid, &status, 0);
-                } else {
-                    //ejecución asíncrona;
-                }
-            }
-        } else {
-            printf("ucvsh: %s: no se encontró la orden\n", command->command);
+        if (cmd_list != NULL) {
+            execute_command_list(cmd_list, cmd_count);
+            freeCommandList(cmd_list, cmd_count);
         }
-        free(executable_path);
-        freeCommandStruct(command);
     }
     return 0;
 }

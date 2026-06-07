@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "../../include/utils/path_resolver.h"
 
 char* resolve_path(char *cmd) {
     // consideramos si el usuario introdujo una ruta explícita (absoluta o relativa)
@@ -30,25 +31,25 @@ char* resolve_path(char *cmd) {
     
     while (directory != NULL) {
         // se calcula la memoria exacta: dir + '/' + comando + '\0'
-        size_t longitud_total = strlen(directory) + strlen(cmd) + 2;
-        char *ruta_completa = malloc(longitud_total);
+        size_t lenght = strlen(directory) + strlen(cmd) + 2;
+        char *full_path = malloc(lenght);
 
-        if (ruta_completa == NULL) {
+        if (full_path == NULL) {
             free(path_copy);
             return NULL;
         }
 
         // concatena de forma segura (ej. "/usr/bin" + "/" + "ls")
-        snprintf(ruta_completa, longitud_total, "%s/%s", directory, cmd);
+        snprintf(full_path, lenght, "%s/%s", directory, cmd);
 
         // verificación de existencia del binario en la ruta procesada,
         // además de los permisos de ejecución
-        if (access(ruta_completa, X_OK) == 0) {
+        if (access(full_path, X_OK) == 0) {
             free(path_copy); 
-            return ruta_completa;
+            return full_path;
         }
 
-        free(ruta_completa);
+        free(full_path);
         directory = strtok(NULL, ":");
     }
 
