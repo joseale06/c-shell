@@ -7,7 +7,7 @@
 
 static void split_arguments(char *input, CommandStruct *cmd) {
     int i = 0;
-    char *saveptr; // Usar strtok_r para ser thread-safe/reentrante
+    char *saveptr;
     char *token = strtok_r(input, " \t\r\n", &saveptr);
 
     while (token != NULL && i < MAX_ARGS - 1) {
@@ -50,8 +50,6 @@ void freeCommandList(CommandStruct **cmd_list, int cmd_count) {
     }
     free(cmd_list);
 }
-
-// NUEVA VERSIÓN: Retorna un arreglo de CommandStructs
 CommandStruct** parseInput(char *input, int *cmd_count) {
     CommandStruct **list = malloc(20 * sizeof(CommandStruct*));
     *cmd_count = 0;
@@ -63,8 +61,6 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
 
         char *cmd_start = ptr;
         OperatorType next_op = OP_NONE;
-        
-        // Buscar operadores lógicos
         while (*ptr != '\0') {
             if (strncmp(ptr, "&&", 2) == 0) {
                 next_op = OP_AND; *ptr = '\0'; ptr += 2; break;
@@ -79,8 +75,6 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
         CommandStruct *cmd = malloc(sizeof(CommandStruct));
         cmd->cmd_args = malloc(MAX_ARGS * sizeof(char*));
         cmd->next_op = next_op;
-        
-        // Usamos tus funciones de limpieza y formato
         split_arguments(cmd_start, cmd);
         
         if (cmd->num_args > 0) {
