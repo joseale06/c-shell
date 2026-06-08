@@ -3,7 +3,10 @@
 #include <string.h>
 #include "../../include/core/parser.h"
 #include "../../include/core/executor.h"
-#define MAX_BUFFER 1024
+#include "../../include/process/control.h"
+
+#define MAX_BUFFER 1024 
+
 int main() {
     char input[MAX_BUFFER];
 
@@ -20,8 +23,20 @@ int main() {
 
         if (cmd_list == NULL) continue;
 
-        execute_command_list(cmd_list, cmd_count);
-        freeCommandList(cmd_list, cmd_count);
+if (cmd_list != NULL) {
+
+            if (cmd_count > 0 && strcmp(cmd_list[0]->command, "exit") == 0) {
+                freeCommandList(cmd_list, cmd_count);
+                builtin_exit();
+            } 
+            else if (cmd_count > 0 && strcmp(cmd_list[0]->command, "jobs") == 0) {
+                builtin_jobs();
+            } 
+            else {
+                execute_command_list(cmd_list, cmd_count);
+            }
+            freeCommandList(cmd_list, cmd_count);
+        }
     }
 
     return 0;
