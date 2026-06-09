@@ -190,4 +190,3 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
 
     return list;
 }
-
