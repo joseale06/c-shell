@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include "../../include/process/runner.h"
@@ -20,6 +21,7 @@ int run_process(CommandStruct *command) {
             printf("ucvsh: Error crítico durante la creación del proceso.\n");
             last_status = -1;
         } else if (pid == 0) {
+            signal(SIGINT, SIG_DFL); // restablece el comportamiento por defecto.
             execv(executable_path, command->cmd_args);
             exit(EXIT_FAILURE);
         } else {

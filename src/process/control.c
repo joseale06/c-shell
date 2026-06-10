@@ -1,9 +1,29 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
+#include <unistd.h>
 #include "../../include/process/control.h"
 
 Job *job_list_head = NULL;
+
+// ## MANEJO DE LA INTERRUPCIÓN CTRL + C
+static void handle_sigint(int sig) {
+    (void)sig;
+    write(STDOUT_FILENO, "\n\033[1;33mucvsh >\033[0m ", 21);
+}
+
+void init_signals() {
+    struct sigaction sa;
+    sa.sa_handler = handle_sigint;
+    sigemptyset(&sa.sa_mask);      // no bloquear otras señales mientras esta corre.
+    sa.sa_flags = SA_RESTART;      // evita que otras funciones fallen al ser interrumpidas.
+    
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        perror("Error en sigaction");
+    }
+}
+// ---------------------------------
 
 void add_job(pid_t pid, const char *cmd) {
     Job *new_job = (Job *)malloc(sizeof(Job));

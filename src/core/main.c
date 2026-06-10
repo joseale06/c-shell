@@ -4,28 +4,34 @@
 #include "../../include/core/parser.h"
 #include "../../include/core/executor.h"
 #include "../../include/process/control.h"
+#include "../../include/utils/history_manager.h"
+#include "../../include/utils/terminal_manager.h"
 
 #define MAX_BUFFER 1024 // tamaño máximo del búfer de entrada.
 
 int main() {
     char input[MAX_BUFFER];
+    init_signals();
+    init_history();
 
     while (1) {
         printf("\033[1;33mucvsh >\033[0m ");
         fflush(stdout); // asegura que el prompt 'ucvsh >' se imprima inmediatamente.
 
-        // captura la entrada de forma segura
-        // Si fgets() retorna NULL, significa que hubo un error o se detectó EOF (Ctrl + D)
-        if(fgets(input, MAX_BUFFER, stdin) == NULL) break;
+        enable_raw_mode();
+        int status = read_input_raw(input, sizeof(input));
+        disable_raw_mode();
 
-        // limpieza del salto de linea en el comando ingresado por el usuario.
-        // se busca la posición de '\n' y se reemplaza por el carácter nulo '\0'.
-        input[strcspn(input, "\n")] = '\0';
+        if (status == 0) {
+            printf("Saliendo de ucvsh...\n");
+            break;
+        }
 
         // si se presiona enter (línea vacía), se vuelve al inicio.
         if (strlen(input) == 0) continue;
 
         //
+        add_to_history(input);
         int cmd_count = 0;
         CommandStruct **cmd_list = parseInput(input, &cmd_count);
 
