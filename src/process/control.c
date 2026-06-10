@@ -59,7 +59,7 @@ const char* get_state_string(JobState state) {
     }
 }
 
-void builtin_jobs() {
+void _jobs() {
     Job *current = job_list_head;
     if (current == NULL) {
         printf("No existen activos.\n");
@@ -71,10 +71,4 @@ void builtin_jobs() {
         printf("%d\t%s\t%s\n", current->pid, get_state_string(current->state), current->command);
         current = current->next;
     }
-}
-
-void builtin_exit() {
-    printf("Cerrando ucvsh...\n");
-    // lógica para terminar todos los procesos activos.
-    exit(0);
 }

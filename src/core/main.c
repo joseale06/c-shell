@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "../../include/core/parser.h"
 #include "../../include/core/executor.h"
 #include "../../include/process/control.h"
@@ -15,7 +16,12 @@ int main() {
     init_history();
 
     while (1) {
-        printf("\033[1;33mucvsh >\033[0m ");
+        char cwd[1024];
+        if (getcwd(cwd, sizeof(cwd)) != NULL) {
+            printf("\033[1;33mucvsh:%s >\033[0m ", cwd);
+        } else {
+            printf("\033[1;33mucvsh >\033[0m ");
+        }
         fflush(stdout); // asegura que el prompt 'ucvsh >' se imprima inmediatamente.
 
         enable_raw_mode();
@@ -41,15 +47,7 @@ int main() {
 
         if (cmd_list == NULL) continue;
 
-        if (cmd_count > 0 && strcmp(cmd_list[0]->command, "exit") == 0) {
-            freeCommandList(cmd_list, cmd_count);
-            builtin_exit();
-        } else if (cmd_count > 0 && strcmp(cmd_list[0]->command, "jobs") == 0) {
-            builtin_jobs();
-        } else {
-            execute_command_list(cmd_list, cmd_count);
-        }
-
+        execute_command_list(cmd_list, cmd_count);
         freeCommandList(cmd_list, cmd_count);
     }
 
