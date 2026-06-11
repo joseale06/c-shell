@@ -1,4 +1,4 @@
-#ifndef PARSER_H
+#ifndef PARSER_H  
 #define PARSER_H
 
 typedef enum { OP_NONE, OP_SEMICOLON, OP_AND, OP_OR, OP_PIPE} OperatorType;

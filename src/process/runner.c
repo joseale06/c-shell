@@ -2,99 +2,49 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
 #include <sys/wait.h>
 #include <fcntl.h>
 #include "../../include/process/runner.h"
 #include "../../include/core/parser.h"
 #include "../../include/process/control.h"
-#include "../../include/utils/path_resolver.h" 
+#include "../../include/utils/path_resolver.h"
 
 int run_process(CommandStruct *command) {
-    if (command == NULL || command->command == NULL) {
-        return -1;
-    }
-    char *executable_path = resolve_path(command->command);
-    
-    if (executable_path == NULL) {
-        printf("ucvsh: %s: no se encontró la orden\n", command->command);
-        return 127; 
-    }
+    char* executable_path = resolve_path(command->command);
+    int last_status = -1;
 
-    pid_t pid = fork();
+    if (executable_path != NULL) {
+        pid_t pid = fork();
 
-    if (pid < 0) {
-        perror("ucvsh: Error crítico al hacer fork");
-        free(executable_path);
-        return 1;
-    } 
-    
-    if (pid == 0) {
-        execv(executable_path, command->cmd_args);
-        
-        perror("ucvsh: error en execv");
-        free(executable_path);
-        exit(EXIT_FAILURE);
-    } 
-    else {
-        free(executable_path); 
-        int status = 0;
-
-        if (command->background == 1) {
-            add_job(pid, command->command);
-            printf("[%d] %s\n", pid, command->command);
-            return 0; 
+        if (pid < 0) {
+            printf("ucvsh: Error crítico durante la creación del proceso.\n");
+            last_status = -1;
+        } else if (pid == 0) {
+            execv(executable_path, command->cmd_args);
+            exit(EXIT_FAILURE);
         } else {
-            waitpid(pid, &status, 0);
-            
-            if (WIFEXITED(status)) {
-                return WEXITSTATUS(status);
+            if (command->background == 1) {
+                // registro de proceso asíncrono.
+                add_job(pid, command->command);
+                last_status = 0;
+            } else {
+                int status;
+                waitpid(pid, &status, 0);
+                
+                if (WIFEXITED(status)) {
+                    last_status = WEXITSTATUS(status);
+                } else if (WIFSIGNALED(status)) {
+                    printf("\n");
+                    last_status = 128 + WTERMSIG(status);
+                } else last_status = -1;
             }
-            return 0;
         }
-    }
-}
-
-void run_pipeline(CommandStruct *cmd1, CommandStruct *cmd2) {
-    int pipefd[2];
-    if (pipe(pipefd) == -1) {
-        perror("ucvsh: error fatal al crear pipe");
-        return;
+        free(executable_path);
+    } else {
+        printf("ucvsh: %s: no se encontró la orden\n", command->command);
+        last_status = 127; // comando no encontrado.
     }
 
-    pid_t pid1 = fork();
-    if (pid1 == 0) {
-        close(pipefd[0]); 
-        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
-            perror("ucvsh ERROR: dup2 en hijo 1 falló");
-            exit(EXIT_FAILURE);
-        }
-        close(pipefd[1]); 
-
-        char *path1 = resolve_path(cmd1->command);
-        if (path1 == NULL) exit(127);
-        execv(path1, cmd1->cmd_args);
-        exit(EXIT_FAILURE);
-    }
-
-    pid_t pid2 = fork();
-    if (pid2 == 0) { 
-        close(pipefd[1]); 
-        if (dup2(pipefd[0], STDIN_FILENO) == -1) {
-            perror("ucvsh ERROR: dup2 en hijo 2 falló");
-            exit(EXIT_FAILURE);
-        }
-        close(pipefd[0]);
-
-        char *path2 = resolve_path(cmd2->command);
-        if (path2 == NULL) exit(127);
-        execv(path2, cmd2->cmd_args);
-        exit(EXIT_FAILURE);
-    }
-
-
-    close(pipefd[0]);
-    close(pipefd[1]);
-
-    waitpid(pid1, NULL, 0);
-    waitpid(pid2, NULL, 0);
+    return last_status;
 }

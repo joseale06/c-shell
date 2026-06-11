@@ -1,7 +1,6 @@
-#ifndef EXECUTOR_H
+#ifndef EXECUTOR_H  
 #define EXECUTOR_H
-
-#include "parser.h" 
+#include "../../include/core/parser.h"
 
 int execute_command_list(CommandStruct **cmd_list, int cmd_count);
 

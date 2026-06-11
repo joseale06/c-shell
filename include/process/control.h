@@ -1,6 +1,5 @@
 #ifndef CONTROL_H
 #define CONTROL_H
-
 #include <sys/types.h>
 
 typedef enum {

@@ -2,84 +2,191 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../../include/core/parser.h"
+
+#define MAX_ARGS 5 // cantidad base de argumentos para un comando (escalable dinámicamente).
+#define MAX_CMDS 3 // cantidad base de comandos encadenados esperados (escalable dinámicamente).
+
+/* Delimitadores: 
+    espacio (' ')
+    tabulación ('\t')
+    salto de línea ('\n') 
+    retorno de carro ('\r') (protección ante entrada con formato de Windows).
+
+    ej. si el usuario ingresó "ls -l", input contiene:
+    ['l', 's', ' ', '-', 'l', '\0'] (ya se ha eliminado el salto de linea)
+
+    -> ['l', 's', '\0', '-', 'l', '\0']
+    
+    Anteriormente se utilizaba strtok para evitar construir la lógica de iteración y evaluación 
+    manual de la cadena. Finalmente, ésta fue necesaria para un control total de la gestión de la 
+    cadena; existían dificultades a la hora de separar los argumentos.
+*/
+
+static void split_arguments(char *input, CommandStruct *cmd) {
+    cmd->cmd_args = malloc(MAX_ARGS * sizeof(char*));
+    if (!cmd->cmd_args) return;
+    
+    int i = 0;
+    char *ptr = input;
+
+    while (*ptr != '\0') {
+        // se omiten espacios en blanco iniciales.
+        while (*ptr == ' ' || *ptr == '\t' || *ptr == '\r' || *ptr == '\n') ptr++;
+        if (*ptr == '\0') break;
+
+        // redimensionar el arreglo dinámicamente si hay demasiados argumentos.
+        if (i >= MAX_ARGS - 1) {
+            int new_capacity = MAX_ARGS * 2;
+            char **temp = realloc(cmd->cmd_args, new_capacity * sizeof(char*));
+            if (!temp) break;
+            cmd->cmd_args = temp;
+        }
+
+        if (*ptr == '"' || *ptr == '\'') {
+            char quote = *ptr;
+            ptr++; // salta la comilla de apertura.
+            cmd->cmd_args[i++] = ptr;
+            
+            // avanza hasta encontrar la comilla de cierre.
+            while (*ptr != '\0' && *ptr != quote) ptr++;
+            
+            if (*ptr != '\0') {
+                *ptr = '\0'; // reemplaza la comilla de cierre por el delimitador.
+                ptr++;
+            }
+
+        } else {
+            // lógica para comandos o flags (ej. -ls, /bin/)
+            cmd->cmd_args[i++] = ptr;
+            
+            while (*ptr != '\0' && *ptr != ' ' && *ptr != '\t' && *ptr != '\r' && *ptr != '\n') ptr++;
+            
+            if (*ptr != '\0') {
+                *ptr = '\0'; // corta la palabra.
+                ptr++;
+            }
+        }
+    }
+    cmd->cmd_args[i] = NULL;
+    cmd->num_args = i;
+}
+
+// analiza el arreglo de argumentos ya procesado.
+// Si el último caracter es '&', enciende la bandera y lo elimina de la lista. 
+static void run_in_background(CommandStruct *cmd) {
+    cmd->background = 0;
+
+    if (cmd->num_args > 0) {
+        // se accede al último argumento válido.
+        char *last_arg = cmd->cmd_args[cmd->num_args - 1];
+        
+        if (strcmp(last_arg, "&") == 0) {
+            cmd->background = 1;
+            cmd->cmd_args[cmd->num_args - 1] = NULL;
+            cmd->num_args--;
+        }
+    }
+}
+
+void print_command_debug(CommandStruct *cmd) {
+    if (cmd == NULL) {
+        printf("[DEBUG] Comando nulo o vacío.\n");
+        return;
+    }
+
+    printf("[DEBUG] Resultado de parser.c\n");
+    printf("Comando a ejecutar: [ %s ]\n", cmd->command);
+    
+    for (int j = 1; j < cmd->num_args; j++) {
+        printf("  Argumento %d: [%s]\n", j, cmd->cmd_args[j]);
+    }
+    
+    if (cmd->background) {
+        printf("[!] El comando se ejecutará en segundo plano (asíncrono)\n");
+    }
+    
+    printf("----------------------------------------\n\n");
+}
+
 void freeCommandList(CommandStruct **cmd_list, int cmd_count) {
+    if (cmd_list == NULL) return;
+
     for (int i = 0; i < cmd_count; i++) {
-        free(cmd_list[i]->command);
-        free(cmd_list[i]->cmd_args);
-        free(cmd_list[i]);
+        if (cmd_list[i] != NULL) {
+            free(cmd_list[i]->cmd_args);
+            free(cmd_list[i]);
+        }
     }
     free(cmd_list);
 }
 
-CommandStruct **parseInput(char *input, int *cmd_count) {
+CommandStruct** parseInput(char *input, int *cmd_count) {
+    CommandStruct **list = malloc(MAX_CMDS * sizeof(CommandStruct*));
+    if (!list) return NULL;
+
     *cmd_count = 0;
-    CommandStruct **cmd_list = malloc(sizeof(CommandStruct *) * 10);
-
-    char *input_copy = strdup(input);
-    char *token = strtok(input_copy, " ");
+    char *ptr = input;
     
-    // Limpieza inicial del prompt
-    if (token != NULL && strcmp(token, "ucvsh>") == 0) {
-        token = strtok(NULL, " ");
-    }
+    while (*ptr != '\0') {
+        while (*ptr == ' ' || *ptr == '\t') ptr++;
+        if (*ptr == '\0') break;
 
-    while (token != NULL) {
-        CommandStruct *cmd = malloc(sizeof(CommandStruct));
-        cmd->cmd_args = malloc(sizeof(char *) * 10);
-        cmd->background = 0;
-        cmd->next_op = OP_NONE;
-        cmd->command = NULL;
-        cmd->output_file = NULL; 
-        if (strcmp(token, "&") == 0) {
-            cmd->background = 1;
-            token = strtok(NULL, " ");
-            if (token == NULL) {
-                cmd_list[(*cmd_count)++] = cmd;
+        char *cmd_start = ptr;
+        OperatorType next_op = OP_NONE;
+        
+        // se aisla el comando y se busca un posible operador.
+        while (*ptr != '\0') {
+            if (strncmp(ptr, "&&", 2) == 0) {
+                next_op = OP_AND; 
+                *ptr = '\0'; ptr += 2; 
+                break;
+            } else if (strncmp(ptr, "||", 2) == 0) {
+                next_op = OP_OR; 
+                *ptr = '\0'; ptr += 2; 
+                break;
+            } else if (*ptr == ';') {
+                next_op = OP_SEMICOLON; 
+                *ptr = '\0'; ptr += 1; 
                 break;
             }
+            ptr++;
         }
-        if (strcmp(token, "&&") == 0) {
-            cmd->next_op = OP_AND;
-            token = strtok(NULL, " ");
-        } else if (strcmp(token, "||") == 0) {
-            cmd->next_op = OP_OR;
-            token = strtok(NULL, " ");
-        } else if (strcmp(token, "|") == 0) {
-            cmd->next_op = OP_PIPE;
-            token = strtok(NULL, " ");
-        } else {
-            cmd->command = strdup(token);
-            cmd->cmd_args[0] = cmd->command;
-
-            int arg_idx = 1;
-            token = strtok(NULL, " ");
-            
-            while (token != NULL && 
-                   strcmp(token, "&") != 0 && 
-                   strcmp(token, "&&") != 0 && 
-                   strcmp(token, "||") != 0 && 
-                   strcmp(token, "|") != 0) {
-                if (strcmp(token, ">") == 0) {
-                    token = strtok(NULL, " "); 
-                    if (token != NULL) {
-                        cmd->output_file = strdup(token);
-                    }
-                    token = strtok(NULL, " ");
-                    continue; 
-                }
-
-                cmd->cmd_args[arg_idx++] = strdup(token);
-                token = strtok(NULL, " ");
+        
+        // se verifica la capacidad del arreglo para evitar desbordamiento.
+        if (*cmd_count >= MAX_CMDS - 1) {
+            int new_capacity = MAX_CMDS * 2;
+            CommandStruct **temp_list = realloc(list, new_capacity * sizeof(CommandStruct*));
+            if (!temp_list) {
+                freeCommandList(list, *cmd_count);
+                return NULL;
             }
-            cmd->cmd_args[arg_idx] = NULL;
+            list = temp_list;
         }
 
-        cmd_list[(*cmd_count)++] = cmd;
-        if (cmd->command == NULL && cmd->next_op == OP_NONE && cmd->background == 0) {
-            break;
+        CommandStruct *cmd = malloc(sizeof(CommandStruct));
+        if (!cmd) continue;
+        
+        cmd->next_op = next_op;
+        split_arguments(cmd_start, cmd);
+        
+        // filtrado de comandos vacíos generados por exceso de operadores.
+        if (cmd->num_args > 0) {
+            run_in_background(cmd);
+            cmd->command = cmd->cmd_args[0];
+            list[*cmd_count] = cmd;
+            (*cmd_count)++;
+        } else {
+            free(cmd->cmd_args);
+            free(cmd);
         }
     }
 
-    free(input_copy);
-    return cmd_list;
+    if (*cmd_count > 0) {
+        list[*cmd_count - 1]->next_op = OP_NONE;
+    } else {
+        free(list);
+        return NULL;
+    }
+
+    return list;
 }
