@@ -10,6 +10,10 @@ int execute_command_list(CommandStruct **cmd_list, int cmd_count) {
     int last_status = 0;
 
     for (int i = 0; i < cmd_count; i++) {
+        if (i > 0 && cmd_list[i - 1]->next_op == OP_PIPE) {
+            continue;
+        }
+
         CommandStruct *command = cmd_list[i];
         if (i > 0) {
             OperatorType prev_op = cmd_list[i - 1]->next_op;
@@ -20,20 +24,20 @@ int execute_command_list(CommandStruct **cmd_list, int cmd_count) {
                 continue;
             }
         }
+
+        if (command->next_op == OP_PIPE && i + 1 < cmd_count) {
+            run_pipeline(command, cmd_list[i + 1]);
+        } else {
+            last_status = run_process(command);
+        }
         if (command->command != NULL) {
             if (strcmp(command->command, "exit") == 0) {
-                builtin_exit();
                 return 0;
             }
             if (strcmp(command->command, "jobs") == 0) {
-                builtin_jobs();
-                last_status = 0;
                 continue;
             }
         }
-
-        last_status = run_process(command);
     }
-
     return last_status;
 }
