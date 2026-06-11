@@ -9,8 +9,9 @@
 
 int main() {
     char input[MAX_BUFFER];
-
+    
     while (1) {
+        cleanup_jobs();
         printf("\033[1;33mucvsh >\033[0m ");
         fflush(stdout); // asegura que el prompt 'ucvsh >' se imprima inmediatamente.
 

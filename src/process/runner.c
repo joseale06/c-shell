@@ -46,6 +46,8 @@ int run_process(CommandStruct *command) {
         } else {
             if (command->background == 1) {
                 add_job(pid, command->command);
+                printf("\n[Proceso %d] ejecutándose en segundo plano\n", pid);
+                fflush(stdout);
                 last_status = 0;
             } else {
                 waitpid(pid, &status, 0);
