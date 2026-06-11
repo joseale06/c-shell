@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 #include "../../include/process/runner.h"
 #include "../../include/core/parser.h"
 #include "../../include/process/control.h"
@@ -56,46 +57,44 @@ int run_process(CommandStruct *command) {
 void run_pipeline(CommandStruct *cmd1, CommandStruct *cmd2) {
     int pipefd[2];
     if (pipe(pipefd) == -1) {
-        perror("ucvsh: error al crear pipe");
+        perror("ucvsh: error fatal al crear pipe");
         return;
     }
 
     pid_t pid1 = fork();
     if (pid1 == 0) {
-        close(pipefd[0]);
-        dup2(pipefd[1], STDOUT_FILENO);
-        close(pipefd[1]);
+        close(pipefd[0]); 
+        if (dup2(pipefd[1], STDOUT_FILENO) == -1) {
+            perror("ucvsh ERROR: dup2 en hijo 1 falló");
+            exit(EXIT_FAILURE);
+        }
+        close(pipefd[1]); 
 
         char *path1 = resolve_path(cmd1->command);
-        if (path1 == NULL) {
-            fprintf(stderr, "ucvsh: %s: no se encontró la orden\n", cmd1->command);
-            exit(127);
-        }
+        if (path1 == NULL) exit(127);
         execv(path1, cmd1->cmd_args);
-        perror("ucvsh: error en execv cmd1");
-        free(path1);
         exit(EXIT_FAILURE);
     }
 
     pid_t pid2 = fork();
-    if (pid2 == 0) {
-        close(pipefd[1]);
-        dup2(pipefd[0], STDIN_FILENO);
+    if (pid2 == 0) { 
+        close(pipefd[1]); 
+        if (dup2(pipefd[0], STDIN_FILENO) == -1) {
+            perror("ucvsh ERROR: dup2 en hijo 2 falló");
+            exit(EXIT_FAILURE);
+        }
         close(pipefd[0]);
 
         char *path2 = resolve_path(cmd2->command);
-        if (path2 == NULL) {
-            fprintf(stderr, "ucvsh: %s: no se encontró la orden\n", cmd2->command);
-            exit(127);
-        }
+        if (path2 == NULL) exit(127);
         execv(path2, cmd2->cmd_args);
-        perror("ucvsh: error en execv cmd2");
-        free(path2);
         exit(EXIT_FAILURE);
     }
 
+
     close(pipefd[0]);
     close(pipefd[1]);
+
     waitpid(pid1, NULL, 0);
     waitpid(pid2, NULL, 0);
 }
