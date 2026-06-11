@@ -22,19 +22,18 @@
     cadena; existían dificultades a la hora de separar los argumentos.
 */
 
-static void split_arguments(char *input, CommandStruct *cmd) {
+    static void split_arguments(char *input, CommandStruct *cmd) {
     cmd->cmd_args = malloc(MAX_ARGS * sizeof(char*));
     if (!cmd->cmd_args) return;
+    cmd->output_file = NULL;
     
     int i = 0;
     char *ptr = input;
 
     while (*ptr != '\0') {
-        // se omiten espacios en blanco iniciales.
         while (*ptr == ' ' || *ptr == '\t' || *ptr == '\r' || *ptr == '\n') ptr++;
         if (*ptr == '\0') break;
 
-        // redimensionar el arreglo dinámicamente si hay demasiados argumentos.
         if (i >= MAX_ARGS - 1) {
             int new_capacity = MAX_ARGS * 2;
             char **temp = realloc(cmd->cmd_args, new_capacity * sizeof(char*));
@@ -42,27 +41,38 @@ static void split_arguments(char *input, CommandStruct *cmd) {
             cmd->cmd_args = temp;
         }
 
+        
+        if (*ptr == '>') {
+            *ptr = '\0';
+            ptr++;
+            while (*ptr == ' ' || *ptr == '\t' || *ptr == '\r' || *ptr == '\n') ptr++;
+            char *file_start = ptr;
+            while (*ptr != '\0' && *ptr != ' ' && *ptr != '\t' && *ptr != '\r' && *ptr != '\n') ptr++;
+            if (*ptr != '\0') { *ptr = '\0'; ptr++; }
+            cmd->output_file = strdup(file_start);
+            continue;
+        }
+
         if (*ptr == '"' || *ptr == '\'') {
             char quote = *ptr;
-            ptr++; // salta la comilla de apertura.
+            ptr++; 
             cmd->cmd_args[i++] = ptr;
-            
-            // avanza hasta encontrar la comilla de cierre.
             while (*ptr != '\0' && *ptr != quote) ptr++;
-            
-            if (*ptr != '\0') {
-                *ptr = '\0'; // reemplaza la comilla de cierre por el delimitador.
-                ptr++;
-            }
-
+            if (*ptr != '\0') { *ptr = '\0'; ptr++; }
         } else {
-            // lógica para comandos o flags (ej. -ls, /bin/)
             cmd->cmd_args[i++] = ptr;
-            
-            while (*ptr != '\0' && *ptr != ' ' && *ptr != '\t' && *ptr != '\r' && *ptr != '\n') ptr++;
-            
-            if (*ptr != '\0') {
-                *ptr = '\0'; // corta la palabra.
+            while (*ptr != '\0' && *ptr != ' ' && *ptr != '\t' && *ptr != '\r' && *ptr != '\n' && *ptr != '>') ptr++;
+        
+            if (*ptr == '>') {
+                *ptr = '\0'; 
+                ptr++; 
+                while (*ptr == ' ' || *ptr == '\t' || *ptr == '\r' || *ptr == '\n') ptr++;
+                char *file_start = ptr;
+                while (*ptr != '\0' && *ptr != ' ' && *ptr != '\t' && *ptr != '\r' && *ptr != '\n') ptr++;
+                if (*ptr != '\0') { *ptr = '\0'; ptr++; }
+                cmd->output_file = strdup(file_start);
+            } else if (*ptr != '\0') {
+                *ptr = '\0';
                 ptr++;
             }
         }
@@ -71,15 +81,10 @@ static void split_arguments(char *input, CommandStruct *cmd) {
     cmd->num_args = i;
 }
 
-// analiza el arreglo de argumentos ya procesado.
-// Si el último caracter es '&', enciende la bandera y lo elimina de la lista. 
 static void run_in_background(CommandStruct *cmd) {
     cmd->background = 0;
-
     if (cmd->num_args > 0) {
-        // se accede al último argumento válido.
         char *last_arg = cmd->cmd_args[cmd->num_args - 1];
-        
         if (strcmp(last_arg, "&") == 0) {
             cmd->background = 1;
             cmd->cmd_args[cmd->num_args - 1] = NULL;
@@ -89,31 +94,17 @@ static void run_in_background(CommandStruct *cmd) {
 }
 
 void print_command_debug(CommandStruct *cmd) {
-    if (cmd == NULL) {
-        printf("[DEBUG] Comando nulo o vacío.\n");
-        return;
-    }
-
-    printf("[DEBUG] Resultado de parser.c\n");
-    printf("Comando a ejecutar: [ %s ]\n", cmd->command);
-    
-    for (int j = 1; j < cmd->num_args; j++) {
-        printf("  Argumento %d: [%s]\n", j, cmd->cmd_args[j]);
-    }
-    
-    if (cmd->background) {
-        printf("[!] El comando se ejecutará en segundo plano (asíncrono)\n");
-    }
-    
-    printf("----------------------------------------\n\n");
+    if (cmd == NULL) return;
+    printf("[DEBUG] Comando: [ %s ]\n", cmd->command);
+    if (cmd->output_file) printf("  Redirección salida: [%s]\n", cmd->output_file);
 }
 
 void freeCommandList(CommandStruct **cmd_list, int cmd_count) {
     if (cmd_list == NULL) return;
-
     for (int i = 0; i < cmd_count; i++) {
         if (cmd_list[i] != NULL) {
             free(cmd_list[i]->cmd_args);
+            if (cmd_list[i]->output_file != NULL) free(cmd_list[i]->output_file);
             free(cmd_list[i]);
         }
     }
@@ -134,32 +125,18 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
         char *cmd_start = ptr;
         OperatorType next_op = OP_NONE;
         
-        // se aisla el comando y se busca un posible operador.
         while (*ptr != '\0') {
-            if (strncmp(ptr, "&&", 2) == 0) {
-                next_op = OP_AND; 
-                *ptr = '\0'; ptr += 2; 
-                break;
-            } else if (strncmp(ptr, "||", 2) == 0) {
-                next_op = OP_OR; 
-                *ptr = '\0'; ptr += 2; 
-                break;
-            } else if (*ptr == ';') {
-                next_op = OP_SEMICOLON; 
-                *ptr = '\0'; ptr += 1; 
-                break;
-            }
+            if (strncmp(ptr, "&&", 2) == 0) { next_op = OP_AND; *ptr = '\0'; ptr += 2; break; } 
+            else if (strncmp(ptr, "||", 2) == 0) { next_op = OP_OR; *ptr = '\0'; ptr += 2; break; } 
+            else if (*ptr == '|') { next_op = OP_PIPE; *ptr = '\0'; ptr += 1; break; }
+            else if (*ptr == ';') { next_op = OP_SEMICOLON; *ptr = '\0'; ptr += 1; break; }
             ptr++;
         }
         
-        // se verifica la capacidad del arreglo para evitar desbordamiento.
         if (*cmd_count >= MAX_CMDS - 1) {
             int new_capacity = MAX_CMDS * 2;
             CommandStruct **temp_list = realloc(list, new_capacity * sizeof(CommandStruct*));
-            if (!temp_list) {
-                freeCommandList(list, *cmd_count);
-                return NULL;
-            }
+            if (!temp_list) { freeCommandList(list, *cmd_count); return NULL; }
             list = temp_list;
         }
 
@@ -169,24 +146,19 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
         cmd->next_op = next_op;
         split_arguments(cmd_start, cmd);
         
-        // filtrado de comandos vacíos generados por exceso de operadores.
         if (cmd->num_args > 0) {
             run_in_background(cmd);
             cmd->command = cmd->cmd_args[0];
             list[*cmd_count] = cmd;
             (*cmd_count)++;
         } else {
-            free(cmd->cmd_args);
-            free(cmd);
+            if (cmd->output_file) free(cmd->output_file);
+            free(cmd->cmd_args); free(cmd);
         }
     }
 
-    if (*cmd_count > 0) {
-        list[*cmd_count - 1]->next_op = OP_NONE;
-    } else {
-        free(list);
-        return NULL;
-    }
+    if (*cmd_count > 0) list[*cmd_count - 1]->next_op = OP_NONE;
+    else { free(list); return NULL; }
 
     return list;
 }

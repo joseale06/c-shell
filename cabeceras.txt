@@ -1,3 +1,0 @@
-DEBUG: Ejecutando comando: grep
-DEBUG: Arg[0] = grep
-DEBUG: Arg[1] = "include"
