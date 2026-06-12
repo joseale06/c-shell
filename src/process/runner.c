@@ -65,6 +65,8 @@ int run_process(CommandStruct *command, int input_fd, int output_fd, pid_t *out_
             if (command->background == 1) {
                 // registro de proceso asíncrono.
                 add_job(pid, command->command);
+                printf("\n[Proceso %d] ejecutándose en segundo plano\n", pid);
+                fflush(stdout);
                 last_status = 0;
             } else if (out_pid == NULL) {
                 // comando externo (no pipeline): el proceso padre espera.
