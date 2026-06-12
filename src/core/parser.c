@@ -71,6 +71,26 @@ static void split_arguments(char *input, CommandStruct *cmd) {
     cmd->num_args = i;
 }
 
+static void extract_redirections(CommandStruct *cmd) {
+    cmd->output_file = NULL;
+    for (int i = 0; i < cmd->num_args; i++) {
+        if (strcmp(cmd->cmd_args[i], ">") == 0) {
+            if (i + 1 < cmd->num_args) {
+                // capturar el archivo de salida.
+                cmd->output_file = cmd->cmd_args[i + 1];
+                
+                // desplazar el resto de los argumentos para "borrar" el > y el archivo
+                for (int j = i; j < cmd->num_args - 2; j++) {
+                    cmd->cmd_args[j] = cmd->cmd_args[j + 2];
+                }
+                cmd->num_args -= 2;
+                cmd->cmd_args[cmd->num_args] = NULL;
+                i--;
+            }
+        }
+    }
+}
+
 // analiza el arreglo de argumentos ya procesado.
 // Si el último caracter es '&', enciende la bandera y lo elimina de la lista. 
 static void run_in_background(CommandStruct *cmd) {
@@ -133,21 +153,37 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
 
         char *cmd_start = ptr;
         OperatorType next_op = OP_NONE;
+        char current_quote = '\0'; // rastrea si estamos dentro de comillas.
         
         // se aisla el comando y se busca un posible operador.
         while (*ptr != '\0') {
-            if (strncmp(ptr, "&&", 2) == 0) {
-                next_op = OP_AND; 
-                *ptr = '\0'; ptr += 2; 
-                break;
-            } else if (strncmp(ptr, "||", 2) == 0) {
-                next_op = OP_OR; 
-                *ptr = '\0'; ptr += 2; 
-                break;
-            } else if (*ptr == ';') {
-                next_op = OP_SEMICOLON; 
-                *ptr = '\0'; ptr += 1; 
-                break;
+            if (*ptr == '"' || *ptr == '\'') {
+                if (current_quote == '\0') {
+                    current_quote = *ptr;
+                } else if (current_quote == *ptr) {
+                    current_quote = '\0';
+                }
+            }
+
+            // solo detectar operadores lógicos si NO estamos dentro de comillas.
+            if (current_quote == '\0') {
+                if (strncmp(ptr, "&&", 2) == 0) {
+                    next_op = OP_AND; 
+                    *ptr = '\0'; ptr += 2; 
+                    break;
+                } else if (strncmp(ptr, "||", 2) == 0) {
+                    next_op = OP_OR; 
+                    *ptr = '\0'; ptr += 2; 
+                    break;
+                } else if (*ptr == '|') {        
+                    next_op = OP_PIPE; 
+                    *ptr = '\0'; ptr += 1; 
+                    break;
+                } else if (*ptr == ';') {
+                    next_op = OP_SEMICOLON; 
+                    *ptr = '\0'; ptr += 1; 
+                    break;
+                }
             }
             ptr++;
         }
@@ -163,11 +199,12 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
             list = temp_list;
         }
 
-        CommandStruct *cmd = malloc(sizeof(CommandStruct));
+        CommandStruct *cmd = calloc(1, sizeof(CommandStruct));
         if (!cmd) continue;
         
         cmd->next_op = next_op;
         split_arguments(cmd_start, cmd);
+        extract_redirections(cmd);
         
         // filtrado de comandos vacíos generados por exceso de operadores.
         if (cmd->num_args > 0) {
