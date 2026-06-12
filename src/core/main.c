@@ -16,6 +16,7 @@ int main() {
     init_history();
 
     while (1) {
+        cleanup_jobs();
         char cwd[1024];
         if (getcwd(cwd, sizeof(cwd)) != NULL) {
             printf("\033[1;33mucvsh:%s >\033[0m ", cwd);

@@ -71,6 +71,26 @@ static void split_arguments(char *input, CommandStruct *cmd) {
     cmd->num_args = i;
 }
 
+static void extract_redirections(CommandStruct *cmd) {
+    cmd->output_file = NULL;
+    for (int i = 0; i < cmd->num_args; i++) {
+        if (strcmp(cmd->cmd_args[i], ">") == 0) {
+            if (i + 1 < cmd->num_args) {
+                // capturar el archivo de salida.
+                cmd->output_file = cmd->cmd_args[i + 1];
+                
+                // desplazar el resto de los argumentos para "borrar" el > y el archivo
+                for (int j = i; j < cmd->num_args - 2; j++) {
+                    cmd->cmd_args[j] = cmd->cmd_args[j + 2];
+                }
+                cmd->num_args -= 2;
+                cmd->cmd_args[cmd->num_args] = NULL;
+                i--;
+            }
+        }
+    }
+}
+
 // analiza el arreglo de argumentos ya procesado.
 // Si el último caracter es '&', enciende la bandera y lo elimina de la lista. 
 static void run_in_background(CommandStruct *cmd) {
@@ -184,6 +204,7 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
         
         cmd->next_op = next_op;
         split_arguments(cmd_start, cmd);
+        extract_redirections(cmd);
         
         // filtrado de comandos vacíos generados por exceso de operadores.
         if (cmd->num_args > 0) {

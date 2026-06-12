@@ -1,0 +1,1 @@
+CFLAGS = -Wall -Wextra -std=gnu17 -I./include
