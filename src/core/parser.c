@@ -133,21 +133,37 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
 
         char *cmd_start = ptr;
         OperatorType next_op = OP_NONE;
+        char current_quote = '\0'; // rastrea si estamos dentro de comillas.
         
         // se aisla el comando y se busca un posible operador.
         while (*ptr != '\0') {
-            if (strncmp(ptr, "&&", 2) == 0) {
-                next_op = OP_AND; 
-                *ptr = '\0'; ptr += 2; 
-                break;
-            } else if (strncmp(ptr, "||", 2) == 0) {
-                next_op = OP_OR; 
-                *ptr = '\0'; ptr += 2; 
-                break;
-            } else if (*ptr == ';') {
-                next_op = OP_SEMICOLON; 
-                *ptr = '\0'; ptr += 1; 
-                break;
+            if (*ptr == '"' || *ptr == '\'') {
+                if (current_quote == '\0') {
+                    current_quote = *ptr;
+                } else if (current_quote == *ptr) {
+                    current_quote = '\0';
+                }
+            }
+
+            // solo detectar operadores lógicos si NO estamos dentro de comillas.
+            if (current_quote == '\0') {
+                if (strncmp(ptr, "&&", 2) == 0) {
+                    next_op = OP_AND; 
+                    *ptr = '\0'; ptr += 2; 
+                    break;
+                } else if (strncmp(ptr, "||", 2) == 0) {
+                    next_op = OP_OR; 
+                    *ptr = '\0'; ptr += 2; 
+                    break;
+                } else if (*ptr == '|') {        
+                    next_op = OP_PIPE; 
+                    *ptr = '\0'; ptr += 1; 
+                    break;
+                } else if (*ptr == ';') {
+                    next_op = OP_SEMICOLON; 
+                    *ptr = '\0'; ptr += 1; 
+                    break;
+                }
             }
             ptr++;
         }
@@ -163,7 +179,7 @@ CommandStruct** parseInput(char *input, int *cmd_count) {
             list = temp_list;
         }
 
-        CommandStruct *cmd = malloc(sizeof(CommandStruct));
+        CommandStruct *cmd = calloc(1, sizeof(CommandStruct));
         if (!cmd) continue;
         
         cmd->next_op = next_op;

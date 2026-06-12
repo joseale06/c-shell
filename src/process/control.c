@@ -63,7 +63,7 @@ const char* get_state_string(JobState state) {
 void _jobs() {
     Job *current = job_list_head;
     if (current == NULL) {
-        printf("No existen activos.\n");
+        printf("No existen trabajos activos.\n");
         return;
     }
 
