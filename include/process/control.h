@@ -22,5 +22,6 @@ extern Job *job_list_head;
 void add_job(pid_t pid, const char *cmd);
 void update_job_state(pid_t pid, JobState new_state);
 void _jobs(void);
+void cleanup_jobs(void);
 
 #endif

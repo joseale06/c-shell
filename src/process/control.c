@@ -3,6 +3,7 @@
 #include <string.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include "../../include/process/control.h"
 
 Job *job_list_head = NULL;
@@ -70,5 +71,32 @@ void _jobs() {
     while (current != NULL) {
         printf("%d\t%s\t%s\n", current->pid, get_state_string(current->state), current->command);
         current = current->next;
+    }
+}
+
+void cleanup_jobs() {
+    Job *current = job_list_head;
+    Job *prev = NULL;
+
+    while (current != NULL) {
+        int status;
+        pid_t result = waitpid(current->pid, &status, WNOHANG);
+
+        if (result > 0) {
+            if (prev == NULL) {
+                job_list_head = current->next;
+                free(current->command);
+                free(current);
+                current = job_list_head;
+            } else {
+                prev->next = current->next;
+                free(current->command);
+                free(current);
+                current = prev->next;
+            }
+        } else {
+            prev = current;
+            current = current->next;
+        }
     }
 }
