@@ -37,7 +37,6 @@ int main() {
         // si se presiona enter (línea vacía), se vuelve al inicio.
         if (strlen(input) == 0) continue;
 
-        //
         add_to_history(input);
         int cmd_count = 0;
         CommandStruct **cmd_list = parseInput(input, &cmd_count);

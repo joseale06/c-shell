@@ -15,4 +15,4 @@ obj/
 .env/
 .vscode/
 
-.txt
+*.txt

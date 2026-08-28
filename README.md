@@ -1,10 +1,10 @@
 # ucvsh - Intérprete de Comandos (shell)
 
-Este es un proyecto académico para la materia Sistemas Operativos de la Universidad Central de Venezuela (UCV).
+Este fue un proyecto académico para la materia Sistemas Operativos de la Universidad Central de Venezuela (UCV). Se priorizó cumplir con los objetivos fundamentales, por motivos de tiempo, algunas características no fueron implementadas ni optimizadas. 
 
 ## Objetivo
 
-El objetivo principal de `ucvsh` es diseñar e implementar un intérprete de línea de comandos (shell) modular y funcional en C. Este proyecto busca profundizar en la comprensión de la interfaz del sistema operativo (POSIX) mediante la gestión directa de procesos, manipulación de la terminal a bajo nivel, resolución de rutas y evaluación de flujos de control lógico. La shell soporta comandos internos (built-ins), ejecución concurrente, procesos en segundo plano, historial persistente y la concatenación condicional/secuencial a través de operadores estándar.
+El objetivo principal de `ucvsh` es diseñar e implementar un intérprete de línea de comandos (shell) modular y funcional en el lenguaje C. El proyecto busca profundizar en la comprensión de la interfaz del sistema operativo (POSIX) mediante la gestión directa de procesos, manipulación de la terminal a bajo nivel, resolución de rutas y evaluación de flujos de control lógico. La shell soporta comandos internos (built-ins), ejecución concurrente, procesos en segundo plano, historial persistente y la concatenación condicional/secuencial a través de operadores estándar.
 
 ## Arquitectura del sistema
 
@@ -30,7 +30,7 @@ El proyecto está diseñado bajo un modelo de separación estricta de responsabi
 
 El ciclo de vida de `ucvsh` opera mediante un bucle principal que interactúa directamente con el usuario y el kernel del sistema operativo. El flujo de ejecución se divide en las siguientes etapas:
 
-* **Lectura e interfaz:** La shell es configurada en 'raw mode', despliega el prompt personalizado (`ucvsh >`) y captura las pulsaciones del usuario byte a byte.
+* **Lectura e interfaz:** La shell es configurada en 'raw mode', despliega el prompt personalizado (`ucvsh:/path >`) y captura las pulsaciones del usuario byte a byte.
 
 * **Análisis léxico y sintáctico (parsing):** Una vez confirmada la línea de entrada, es enviada al módulo analizador (parser.c).
     * El parser divide la entrada en un arreglo de estructuras (`CommandStruct`) basándose en la presencia de operadores lógicos, secuenciales y tuberías (`&&`, `||`, `;`, `|`).

@@ -76,7 +76,7 @@ int read_input_raw(char *buffer, size_t size) {
                 write(STDOUT_FILENO, "\033[1D", 4);
                 // se redibuja el resto del texto a la derecha.
                 write(STDOUT_FILENO, &buffer[pos], len - pos);
-                // 4. imprime un espacio al final para limpiar la última letra residual
+                // imprime un espacio al final para limpiar la última letra residual
                 write(STDOUT_FILENO, " ", 1);
             
                 // devuelve el cursor a su posición correcta (ANSI: Mover Izquierda)
